@@ -1,0 +1,9 @@
+{
+  "name": "grant-index",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The Grant Index — search grants, scholarships, and fellowships by subject.",
+  "dependencies": {
+    "stripe": "^17.0.0"
+  }
+}

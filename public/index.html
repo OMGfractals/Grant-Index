@@ -106,7 +106,8 @@
   }
   button.search-btn:disabled { background: var(--gray); cursor: not-allowed; }
 
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chips-label { margin-top: 18px; margin-bottom: 8px; text-transform: none; letter-spacing: 0; font-style: italic; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 
   .chip {
     font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); background: transparent;
@@ -391,14 +392,15 @@
       </div>
     </details>
 
+    <span class="slip-label chips-label">Try an example — fills the box, doesn't search yet</span>
     <div class="chips" id="chips">
       <button type="button" class="chip" data-topic="small business" data-cat="Business">small business</button>
+      <button type="button" class="chip" data-topic="continuing education and professional certification" data-cat="Education">continuing education</button>
       <button type="button" class="chip" data-topic="home repair and weatherization" data-cat="Home">home repair</button>
-      <button type="button" class="chip" data-topic="cultural astronomy" data-cat="Education">cultural astronomy</button>
-      <button type="button" class="chip" data-topic="holistic health practice" data-cat="Health & Wellness">holistic health</button>
-      <button type="button" class="chip" data-topic="yoga teacher training" data-cat="Education">yoga teacher training</button>
-      <button type="button" class="chip" data-topic="somatic bodywork" data-cat="Health & Wellness">somatic bodywork</button>
       <button type="button" class="chip" data-topic="independent artists" data-cat="Arts & Culture">independent artists</button>
+      <button type="button" class="chip" data-topic="mental health counseling training" data-cat="Health & Wellness">mental health counseling</button>
+      <button type="button" class="chip" data-topic="community and nonprofit programs" data-cat="Community">community nonprofits</button>
+      <button type="button" class="chip" data-topic="graduate research funding" data-cat="Research & Science">graduate research</button>
     </div>
   </div>
 
@@ -699,7 +701,7 @@
       selectedCategories = new Set([t.dataset.cat]);
       setCategoryChipState(t.dataset.cat, true);
     }
-    form.requestSubmit();
+    input.focus();
   });
 
   form.addEventListener('submit', async (e) => {

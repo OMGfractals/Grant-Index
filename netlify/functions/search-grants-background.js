@@ -15,6 +15,23 @@ const ALLOWED_CATEGORIES = [
   'Health & Wellness', 'Community', 'Research & Science'
 ];
 
+const MAX_SEARCHES_PER_DAY = parseInt(process.env.MAX_SEARCHES_PER_DAY || '200', 10);
+const MAX_SEARCHES_PER_IP_PER_DAY = parseInt(process.env.MAX_SEARCHES_PER_IP_PER_DAY || '25', 10);
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+// Approximate limiter — read-then-write isn't atomic, so under heavy
+// concurrent load it can slightly over- or under-count. That's fine here:
+// the goal is bounding worst-case cost, not billing-grade precision.
+async function checkAndIncrement(store, key, max) {
+  const current = (await store.get(key, { type: 'json' })) || 0;
+  if (current >= max) return false;
+  await store.setJSON(key, current + 1);
+  return true;
+}
+
 exports.handler = async (event) => {
   connectLambda(event);
   const store = getStore({ name: 'search-jobs' });
@@ -45,6 +62,20 @@ exports.handler = async (event) => {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return writeError('Server is not configured (missing ANTHROPIC_API_KEY)');
+
+  const rateLimitStore = getStore({ name: 'rate-limits' });
+  const day = todayKey();
+  const clientIp = event.headers?.['x-nf-client-connection-ip'] || event.headers?.['client-ip'] || 'unknown';
+
+  const withinGlobalLimit = await checkAndIncrement(rateLimitStore, `global:${day}`, MAX_SEARCHES_PER_DAY);
+  if (!withinGlobalLimit) {
+    return writeError('This app has hit its search limit for today. Please try again tomorrow.');
+  }
+
+  const withinIpLimit = await checkAndIncrement(rateLimitStore, `ip:${clientIp}:${day}`, MAX_SEARCHES_PER_IP_PER_DAY);
+  if (!withinIpLimit) {
+    return writeError("You've reached today's search limit. Please try again tomorrow.");
+  }
 
   const filterLines = [];
   if (degree) filterLines.push(`Degree level: ${degree}`);

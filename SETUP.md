@@ -2,7 +2,8 @@
 
 A PWA that searches grants/scholarships live via Claude, with a free monthly
 tier and a one-time Stripe purchase to unlock more searches. No native app
-store involved — installable straight from the browser.
+store involved, no terminal required anywhere in this guide — everything
+below is done by clicking through websites.
 
 ## What's in here
 
@@ -20,69 +21,125 @@ netlify.toml             routes /api/* to the functions above
 package.json             lists the "stripe" dependency the functions need
 ```
 
-## 1. Create the Stripe product
+## 1. Push the code to GitHub (no terminal)
 
-1. Sign in at dashboard.stripe.com (or create an account).
-2. Products → Add product. Name it something like "20 Grant Index Searches."
-   One-time price, e.g. $4.99. Save it.
-3. Copy the **Price ID** (starts with `price_`) — you'll need it below.
-4. Developers → API keys → copy your **Secret key** (starts with `sk_live_`
-   once you're out of test mode, `sk_test_` while testing).
+1. Unzip the project on your computer.
+2. Open the unzipped folder so you can see what's inside (`public`,
+   `netlify`, `package.json`, etc.).
+3. Go to **github.com/new**, create a new **empty** repo — leave "add a
+   README" unchecked.
+4. On the empty repo's page, click the link for uploading an existing file.
+5. Drag everything **inside** the unzipped folder onto that page — the
+   files themselves, not the outer `grant-index-app` folder. If you drag
+   the folder itself, everything ends up nested one level too deep and
+   Netlify won't find `netlify.toml` where it expects it.
+6. Type a commit message like "Grant Index v1" and click "Commit changes."
 
-Test in Stripe's test mode first (test secret key + Stripe's test card
-4242 4242 4242 4242) before flipping to live keys.
+## 2. Deploy to Netlify and get your app's web address
 
-## 2. Push this to GitHub
+Do this before touching Stripe — Stripe's signup asks for a website URL,
+and this is the fastest way to have a real one.
 
-Netlify deploys functions cleanly from a connected Git repo — much less
-friction than manual zip uploads, and it gives you redeploys on every push.
+1. **app.netlify.com** → Add new site → Import an existing project →
+   GitHub → select the repo you just pushed.
+2. Netlify should auto-detect the build settings from `netlify.toml`
+   (publish directory `public`, functions directory `netlify/functions`) —
+   confirm and deploy. The site will go live even though the functions
+   won't fully work yet (no keys configured), which is fine for now.
+3. Netlify gives you a free address immediately, something like
+   `random-words-193847.netlify.app`.
+4. Worth doing now: Site settings → Domain management → Options → Edit
+   site name → change it to something like `grant-index`, so the address
+   reads `grant-index.netlify.app`. Free, instant, and better than a
+   random string for something you're about to hand to a payment
+   processor and eventually to real users.
 
-```
-cd grant-index-app
-git init
-git add .
-git commit -m "Grant Index v1"
-```
+## 3. Create the Stripe product and get your keys
 
-Create a new repo on GitHub, then:
+1. Sign in at **dashboard.stripe.com**, or create an account. If asked for
+   a website, use the Netlify address from step 2.
+2. Make sure you're in **test mode** — there's a toggle near the top of
+   the dashboard. Stay in test mode for everything below until step 6.
+3. Go to **Product catalog** in the left sidebar → **+ Add product**.
+   Name it something like "20 Grant Index Searches," set a one-time price
+   (e.g. $4.99), save it.
+4. Click into that product to open its detail page. Under the **Pricing**
+   section you'll see the price you just created, with an ID next to it
+   starting with `price_...` — click the copy icon next to it. That's
+   your **Price ID**. (There's also a **Product ID** starting with
+   `prod_...` nearby — don't grab that one, it won't work here.)
+5. Go to **Developers → API keys** (left sidebar). Copy the **Secret
+   key** — starts with `sk_test_` while you're in test mode.
 
-```
-git remote add origin <your repo URL>
-git push -u origin main
-```
+You should now have two values copied: a `price_...` ID and an
+`sk_test_...` key.
 
-## 3. Connect it to Netlify
+## 4. Add your keys to Netlify
 
-1. Netlify → Add new site → Import an existing project → pick the repo.
-2. Build settings: publish directory `public`, functions directory
-   `netlify/functions` (netlify.toml already sets these — Netlify should
-   pick them up automatically).
-3. Site settings → Environment variables — add:
-   - `ANTHROPIC_API_KEY` — your Anthropic key
-   - `STRIPE_SECRET_KEY` — the Stripe secret key from step 1
-   - `STRIPE_PRICE_ID` — the Stripe price ID from step 1
-   - `GRANT_CREDITS_PER_PURCHASE` — optional, defaults to 20
-4. Deploy.
+1. On your site in Netlify: Site settings → Environment variables → Add
+   a variable.
+2. Add these four, one at a time:
 
-## 4. Update the displayed price
+   | Key | Value |
+   |---|---|
+   | `ANTHROPIC_API_KEY` | your Anthropic key |
+   | `STRIPE_SECRET_KEY` | the `sk_test_...` key from step 3 |
+   | `STRIPE_PRICE_ID` | the `price_...` ID from step 3 |
+   | `GRANT_CREDITS_PER_PURCHASE` | `20` (optional — this is the default anyway) |
 
-`public/index.html` has one line near the top of the `<script>` block:
+3. Netlify may show the scope option grayed out on "same value for all
+   deploy contexts" — that's normal if you don't have any other deploy
+   contexts (branches, previews) active. Whatever single field is
+   editable is the one that matters; just fill that in.
+4. **Trigger a redeploy** after adding these — Deploys tab → Trigger
+   deploy. Variables added after a deploy don't apply to it retroactively;
+   they only take effect on the next build.
 
+## 5. Update the displayed price (to match what you set in Stripe)
+
+There's one line in the code that shows the price on the "buy more
+searches" button — it's just text, not connected to the real Stripe
+price, so if you didn't use $4.99 for 20 searches, update it to match.
+To edit it without installing anything locally:
+
+1. On your repo's GitHub page, open `public/index.html`.
+2. Click the pencil (edit) icon, top right of the file view.
+3. Use your browser's find-on-page (Ctrl+F / Cmd+F) to search for
+   `PACK_PRICE_LABEL` — it's near the top of the `<script>` section:
 ```js
-const PACK_PRICE_LABEL = '$4.99 for 20 more searches';
+   const PACK_PRICE_LABEL = '$4.99 for 20 more searches';
 ```
+4. Edit the text between the quotes to match your actual Stripe price.
+5. Scroll down, commit the change directly on the `main` branch. Netlify
+   will automatically redeploy since it's connected to this repo.
 
-This is just the text shown on the button — the real charge is whatever you
-set on the Stripe price. Keep these two in sync by hand.
+## 6. Test the whole loop before touching real money
 
-## 5. Test end to end
+- Run a couple of free searches, confirm results render.
+- Try the category chips and advanced filters, confirm they change what
+  comes back.
+- Burn through the 3 free searches, confirm the paywall shows up.
+- Click "Buy," complete checkout with Stripe's test card
+  (`4242 4242 4242 4242`, any future expiry date, any CVC), confirm you
+  land back on the site with credits added.
+- On your phone, open the deployed URL and check that "Add to Home
+  Screen" (iOS Safari) or the install prompt (Android Chrome) shows up
+  and actually works.
 
-- Run a few free searches (limit is 3/month, set by `FREE_LIMIT` in
-  `index.html`) to confirm results render.
-- Let it hit the paywall, click through checkout with Stripe's test card,
-  confirm you land back on the site with credits added.
-- Switch Stripe to live mode and swap in the live secret key when you're
-  ready to charge real cards.
+## 7. Go live
+
+Once everything above works: in Stripe, switch out of test mode, repeat
+step 3 for live mode (new product/price, new secret key — Stripe keeps
+test and live completely separate), and update `STRIPE_SECRET_KEY` and
+`STRIPE_PRICE_ID` in Netlify (step 4) to the live values. Trigger another
+redeploy. That's the only change needed — nothing else in the code knows
+or cares about the difference.
+
+## 8. Optional: a real domain instead of `*.netlify.app`
+
+Site settings → Domain management → Add a custom domain.
+
+---
 
 ## What's in v1
 
@@ -92,17 +149,18 @@ set on the Stripe price. Keep these two in sync by hand.
 - Category filter chips (Business, Education & Personal Development, Home,
   Arts & Culture, Health & Wellness, Community, Research & Science) —
   multi-select, restricts the search to only those categories. Leaving
-  everything unchecked searches all categories, same as before this existed.
-- For broad topics, the model now runs multiple differently-angled searches
+  everything unchecked searches all categories.
+- For broad topics, the model runs multiple differently-angled searches
   (by demographic, by funding type) before compiling the list, instead of
-  one generic query — aimed at the "8 results for 'small business' all look
-  the same" problem, not just showing more of the same results.
+  one generic query.
 - Save/bookmark results into a separate "Saved" tab.
 - One-click "+ Cal" button per result — downloads an `.ics` file for that
   deadline (skipped automatically for results with no fixed date, like
   "Rolling").
 - Client-side sort of the current results by deadline or amount, no extra
   API call.
+- Result cap is 8 per search, by design — see the chat history for the
+  cost/relevance reasoning if you revisit this later.
 
 ## Known limitations of this version (fine for validating demand, worth
 fixing before you scale)
@@ -110,20 +168,17 @@ fixing before you scale)
 - **Free-tier count, purchased credits, and saved grants all live in
   `localStorage`.** They're scoped to one browser on one device — clearing
   site data or switching devices resets the free count and loses saved
-  items. For a low-priced utility this is an acceptable v1 tradeoff; the
-  real fix is moving all three to a small database keyed by account (email
-  or similar) instead of trusting the client.
-- **No accounts.** Nothing is tied to a person — just a browser. Search
-  history and credits don't follow someone across devices.
+  items. The real fix later is moving all three to a small database keyed
+  by account (email or similar) instead of trusting the client.
+- **No accounts.** Nothing is tied to a person — just a browser.
 - **Rate limiting is not implemented.** Nothing currently stops someone
   from hammering `/api/search-grants` directly (bypassing the UI) and
-  running up your Anthropic bill. Worth adding IP-based throttling in the
-  function before wide release.
+  running up your Anthropic bill. Worth adding IP-based throttling before
+  wide release.
 
 ## Turning this into an installable "app" (no App Store needed)
 
 Once deployed, visiting the Netlify URL on a phone shows an "Add to Home
-Screen" (iOS Safari) or an install prompt (Android Chrome) — that's the PWA
-manifest and service worker doing their job. It behaves like a native app
-icon and launches full-screen, with no Apple/Google review process
-involved.
+Screen" (iOS Safari) or an install prompt (Android Chrome). It behaves
+like a native app icon and launches full-screen, with no Apple/Google
+review process involved.

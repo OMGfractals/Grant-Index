@@ -8,6 +8,7 @@
 // (10-30 seconds depending on plan) — background functions get up to 15
 // minutes, which comfortably covers it.
 
+const crypto = require('crypto');
 const { connectLambda, getStore } = require('@netlify/blobs');
 
 const ALLOWED_CATEGORIES = [
@@ -17,9 +18,17 @@ const ALLOWED_CATEGORIES = [
 
 const MAX_SEARCHES_PER_DAY = parseInt(process.env.MAX_SEARCHES_PER_DAY || '200', 10);
 const MAX_SEARCHES_PER_IP_PER_DAY = parseInt(process.env.MAX_SEARCHES_PER_IP_PER_DAY || '25', 10);
+const FREE_SEARCHES_PER_MONTH = parseInt(process.env.FREE_SEARCHES_PER_MONTH || '3', 10);
+const SEARCH_CACHE_HOURS = parseFloat(process.env.SEARCH_CACHE_HOURS || '12');
+const SEARCH_CACHE_MS = SEARCH_CACHE_HOURS * 60 * 60 * 1000;
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function currentMonthKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth() + 1}`;
 }
 
 // Approximate limiter — read-then-write isn't atomic, so under heavy
@@ -30,6 +39,15 @@ async function checkAndIncrement(store, key, max) {
   if (current >= max) return false;
   await store.setJSON(key, current + 1);
   return true;
+}
+
+// Same search inputs should hit the same cache entry regardless of case,
+// whitespace, or the order filters/categories were supplied in.
+function buildCacheKey(topic, degree, residency, age, industry, categories) {
+  const norm = (s) => (s || '').trim().toLowerCase();
+  const sortedCats = [...categories].map(norm).sort().join(',');
+  const raw = [norm(topic), norm(degree), norm(residency), norm(age), norm(industry), sortedCats].join('|');
+  return crypto.createHash('sha256').update(raw).digest('hex');
 }
 
 exports.handler = async (event) => {
@@ -63,9 +81,44 @@ exports.handler = async (event) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return writeError('Server is not configured (missing ANTHROPIC_API_KEY)');
 
+  const clientIp = event.headers?.['x-nf-client-connection-ip'] || event.headers?.['client-ip'] || 'unknown';
+
+  // ---- Entitlement (the actual paywall). Checked before the cache lookup
+  // and consumed either way — a cache hit still counts as "a search" from
+  // the user's side, it's just free for us to serve. ----
+  const entitlementStore = getStore({ name: 'entitlements' });
+  const entitlementKey = `entitlement:${clientIp}`;
+  let entitlement = (await entitlementStore.get(entitlementKey, { type: 'json' }))
+    || { freeUsedThisMonth: 0, freeMonth: currentMonthKey(), credits: 0 };
+  if (entitlement.freeMonth !== currentMonthKey()) {
+    entitlement = { freeUsedThisMonth: 0, freeMonth: currentMonthKey(), credits: entitlement.credits || 0 };
+  }
+
+  if (entitlement.freeUsedThisMonth < FREE_SEARCHES_PER_MONTH) {
+    entitlement.freeUsedThisMonth += 1;
+  } else if (entitlement.credits > 0) {
+    entitlement.credits -= 1;
+  } else {
+    return store.setJSON(jobId, { status: 'paywall' });
+  }
+  await entitlementStore.setJSON(entitlementKey, entitlement);
+
+  // ---- Result cache — check before spending anything on a real search.
+  // Skips both the abuse rate limit below and the Anthropic call entirely
+  // on a hit, since a cached response costs nothing. ----
+  const cacheStore = getStore({ name: 'search-cache' });
+  const cacheKey = buildCacheKey(topic, degree, residency, age, industry, categories);
+
+  const cached = await cacheStore.get(cacheKey, { type: 'json' });
+  if (cached && (Date.now() - cached.cachedAt) < SEARCH_CACHE_MS) {
+    await store.setJSON(jobId, { status: 'done', results: cached.results });
+    return;
+  }
+
+  // ---- Abuse-prevention rate limits — only reached on a cache miss, since
+  // only a cache miss is about to cost real API money. ----
   const rateLimitStore = getStore({ name: 'rate-limits' });
   const day = todayKey();
-  const clientIp = event.headers?.['x-nf-client-connection-ip'] || event.headers?.['client-ip'] || 'unknown';
 
   const withinGlobalLimit = await checkAndIncrement(rateLimitStore, `global:${day}`, MAX_SEARCHES_PER_DAY);
   if (!withinGlobalLimit) {
@@ -134,6 +187,7 @@ exports.handler = async (event) => {
     }
 
     await store.setJSON(jobId, { status: 'done', results });
+    await cacheStore.setJSON(cacheKey, { results, cachedAt: Date.now() });
   } catch (err) {
     await writeError('Search request failed: ' + err.message);
   }

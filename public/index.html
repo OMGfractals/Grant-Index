@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1F2E28">
+<meta name="description" content="Search grants, scholarships, and fellowships by subject — pulled live from the web.">
+<title>The Grant Index</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<style>
+  :root {
+    --paper: #EAEFE9;
+    --paper-raised: #F4F7F2;
+    --ink: #1F2E28;
+    --ink-soft: #4B5A52;
+    --line: #C7D0C4;
+    --brass: #A9803F;
+    --brass-deep: #8A6A34;
+    --oxblood: #8B3A3A;
+    --teal: #3D6B66;
+    --sage: #5C7A5A;
+    --dusty-blue: #4C6580;
+    --gray: #736F63;
+    --plum: #5C4670;
+    --terracotta: #B06A4F;
+    --radius: 3px;
+    --serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Consolas', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    background-image: linear-gradient(var(--paper) 1px, transparent 1px);
+    background-size: 100% 32px;
+    color: var(--ink);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+
+  .app { max-width: 1080px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 32px; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--brass-deep); margin: 0 0 10px;
+  }
+
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(34px, 5vw, 52px);
+    letter-spacing: -0.01em; margin: 0 0 10px; color: var(--ink);
+  }
+
+  .subtitle { font-size: 15px; color: var(--ink-soft); max-width: 520px; line-height: 1.5; margin: 0; }
+
+  .search-slip {
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 22px 24px; margin-bottom: 0; position: relative; z-index: 1;
+    box-shadow: 0 1px 0 rgba(31,46,40,0.04), 0 8px 20px -14px rgba(31,46,40,0.25);
+  }
+
+  .slip-top-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .slip-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--ink-soft); display: block;
+  }
+
+  .usage-counter {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-soft);
+  }
+
+  .usage-counter strong { color: var(--brass-deep); }
+
+  form { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  input[type="text"] {
+    flex: 1 1 260px; background: transparent; border: none; border-bottom: 1.5px solid var(--line);
+    font-family: var(--serif); font-size: 20px; color: var(--ink); padding: 4px 2px 10px;
+    outline: none; transition: border-color 0.15s ease;
+  }
+
+  input[type="text"]::placeholder { color: #9AA69A; font-style: italic; }
+  input[type="text"]:focus { border-bottom-color: var(--brass); }
+
+  button.search-btn {
+    font-family: var(--sans); font-weight: 600; font-size: 13px; letter-spacing: 0.04em;
+    text-transform: uppercase; background: var(--ink); color: var(--paper); border: none;
+    border-radius: var(--radius); padding: 0 24px; cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+  }
+
+  button.search-btn:hover { background: var(--teal); }
+  button.search-btn:active { transform: scale(0.98); }
+  button.search-btn:focus-visible, input:focus-visible, .chip:focus-visible {
+    outline: 2px solid var(--brass); outline-offset: 2px;
+  }
+  button.search-btn:disabled { background: var(--gray); cursor: not-allowed; }
+
+  .chips-label { margin-top: 18px; margin-bottom: 8px; text-transform: none; letter-spacing: 0; font-style: italic; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .chip {
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); background: transparent;
+    border: 1px solid var(--line); border-radius: 20px; padding: 5px 12px; cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .chip:hover { border-color: var(--brass); color: var(--brass-deep); }
+
+  /* ---------- Category filter chips ---------- */
+  .category-filters { margin-top: 18px; }
+
+  .cat-hint {
+    text-transform: none; letter-spacing: 0; font-style: italic;
+    color: var(--ink-soft); font-size: 10.5px; font-weight: normal;
+  }
+
+  .cat-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+  .cat-chip {
+    font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); background: transparent;
+    border: 1px solid var(--line); border-radius: 20px; padding: 5px 12px; cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .cat-chip:hover:not(.active) { border-color: var(--brass); color: var(--brass-deep); }
+  .cat-chip.active { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+
+  /* ---------- Advanced filters ---------- */
+  details.filters { margin-top: 16px; }
+
+  details.filters summary {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--teal); cursor: pointer; list-style: none; user-select: none;
+  }
+
+  details.filters summary::-webkit-details-marker { display: none; }
+  details.filters summary::before { content: '+ '; }
+  details.filters[open] summary::before { content: '\2212 '; }
+  details.filters[open] summary { margin-bottom: 14px; }
+
+  .filters-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px;
+    padding-top: 4px;
+  }
+
+  .filters-grid label { display: block; }
+
+  .filters-grid select, .filters-grid input[type="text"] {
+    width: 100%; background: transparent; border: none; border-bottom: 1.5px solid var(--line);
+    font-family: var(--sans); font-size: 14px; color: var(--ink); padding: 4px 2px 8px; outline: none;
+  }
+
+  .filters-grid select:focus, .filters-grid input:focus { border-bottom-color: var(--brass); }
+
+  /* ---------- Tabs ---------- */
+  .tabs { display: flex; gap: 6px; margin-top: 20px; margin-bottom: -1px; position: relative; z-index: 0; }
+
+  .tab-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    background: transparent; border: 1px solid var(--line); border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0; padding: 9px 20px; cursor: pointer;
+    color: var(--ink-soft); transition: color 0.15s ease;
+  }
+
+  .tab-btn.active { background: var(--paper-raised); color: var(--ink); }
+  .tab-btn:hover:not(.active) { color: var(--brass-deep); }
+
+  #content { border-top: 1px solid var(--line); padding-top: 24px; }
+
+  .status {
+    padding: 40px 0; text-align: center; color: var(--ink-soft);
+    font-family: var(--mono); font-size: 13px;
+  }
+
+  .stamp-spin {
+    width: 34px; height: 34px; border: 2px solid var(--line); border-top-color: var(--brass);
+    border-radius: 50%; margin: 0 auto 14px; animation: spin 0.9s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) { .stamp-spin { animation: none; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    border: 1px solid var(--oxblood); background: rgba(139,58,58,0.06); border-radius: var(--radius);
+    padding: 18px 20px; color: var(--oxblood); font-size: 14px; margin: 20px 0;
+  }
+
+  .error-box button {
+    margin-top: 10px; background: none; border: 1px solid var(--oxblood); color: var(--oxblood);
+    padding: 6px 14px; border-radius: var(--radius); font-family: var(--mono); font-size: 12px; cursor: pointer;
+  }
+
+  .toast {
+    border: 1px solid var(--sage); background: rgba(92,122,90,0.08); border-radius: var(--radius);
+    padding: 14px 18px; color: var(--sage); font-size: 13.5px; margin: 20px 0 0;
+    font-family: var(--mono);
+  }
+
+  .results-header {
+    display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 18px;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-soft);
+    letter-spacing: 0.04em; text-transform: uppercase; flex-wrap: wrap; gap: 10px;
+  }
+
+  .sort-control { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; }
+
+  .sort-control select {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    background: transparent; border: none; border-bottom: 1px solid var(--line); color: var(--ink-soft);
+    padding: 2px 4px 4px; outline: none; cursor: pointer;
+  }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+
+  .card {
+    position: relative; background: var(--paper-raised); border: 1px solid var(--line);
+    border-left: 4px solid var(--gray); border-radius: var(--radius); padding: 20px 20px 18px;
+    box-shadow: 0 1px 0 rgba(31,46,40,0.03), 0 10px 22px -16px rgba(31,46,40,0.35);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .card::before {
+    content: ""; position: absolute; top: 14px; left: -7px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--paper); border: 1px solid var(--line);
+  }
+
+  .card.cat-education { border-left-color: var(--brass); }
+  .card.cat-arts { border-left-color: var(--oxblood); }
+  .card.cat-research { border-left-color: var(--teal); }
+  .card.cat-health { border-left-color: var(--sage); }
+  .card.cat-community { border-left-color: var(--dusty-blue); }
+  .card.cat-general { border-left-color: var(--gray); }
+  .card.cat-business { border-left-color: var(--plum); }
+  .card.cat-home { border-left-color: var(--terracotta); }
+
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .amount { font-family: var(--mono); font-size: 19px; font-weight: 600; color: var(--ink); }
+
+  .deadline-tag {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--brass-deep); background: rgba(169,128,63,0.12); padding: 3px 8px;
+    border-radius: 20px; white-space: nowrap; margin-top: 2px;
+  }
+
+  .card h3 { font-family: var(--serif); font-weight: 400; font-size: 19px; margin: 0; line-height: 1.25; color: var(--ink); }
+  .org { font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-soft); margin: -6px 0 0; }
+  .desc, .eligibility { font-size: 13.5px; line-height: 1.5; color: var(--ink-soft); margin: 0; }
+  .eligibility { padding-top: 8px; border-top: 1px dashed var(--line); }
+  .eligibility strong { color: var(--ink); font-weight: 600; }
+
+  .card-footer {
+    margin-top: auto; padding-top: 10px; display: flex; justify-content: space-between;
+    align-items: center; flex-wrap: wrap; gap: 8px;
+  }
+
+  .source-link { font-family: var(--mono); font-size: 12px; color: var(--teal); text-decoration: none; border-bottom: 1px solid transparent; }
+  .source-link:hover { border-bottom-color: var(--teal); }
+
+  .card-actions { display: flex; gap: 8px; }
+
+  .icon-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--ink-soft); background: transparent; border: 1px solid var(--line); border-radius: 20px;
+    padding: 0 14px; min-height: 34px; display: inline-flex; align-items: center; cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+
+  .icon-btn:hover:not(:disabled) { border-color: var(--brass); color: var(--brass-deep); }
+  .icon-btn.saved { border-color: var(--brass); color: var(--brass-deep); background: rgba(169,128,63,0.12); }
+  .icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .select-check {
+    position: absolute; top: 14px; left: 14px; width: 20px; height: 20px; cursor: pointer;
+    accent-color: var(--brass-deep); z-index: 2;
+  }
+
+  .card.selectable { padding-left: 44px; }
+
+  .export-bar {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 18px; margin: 0 0 18px;
+  }
+
+  .export-bar .export-count {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--ink-soft); white-space: nowrap;
+  }
+
+  .export-bar input[type="email"] {
+    flex: 1 1 200px; min-width: 160px; font-family: var(--sans); font-size: 14px;
+    padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--radius);
+    background: var(--paper); color: var(--ink); outline: none;
+  }
+
+  .export-bar input[type="email"]:focus { border-color: var(--brass); }
+
+  .export-bar button {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+    color: #fff; background: var(--brass-deep); border: none; border-radius: var(--radius);
+    padding: 10px 18px; cursor: pointer; white-space: nowrap;
+  }
+
+  .export-bar button:hover:not(:disabled) { background: var(--brass); }
+  .export-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .login-area {
+    display: flex; justify-content: flex-end; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; color: var(--ink-soft); margin: 0 0 8px;
+  }
+
+  .login-area .logged-in-email { color: var(--ink); }
+
+  .login-area .logout-btn {
+    background: none; border: none; color: var(--ink-soft); text-decoration: underline;
+    cursor: pointer; font-family: var(--mono); font-size: 11px; padding: 0;
+  }
+
+  .login-gate {
+    max-width: 420px; margin: 60px auto; text-align: center;
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 40px 32px; box-shadow: 0 1px 0 rgba(31,46,40,0.03), 0 10px 22px -16px rgba(31,46,40,0.35);
+  }
+
+  .login-gate h2 { font-family: var(--serif); font-weight: 400; font-size: 24px; margin: 0 0 10px; color: var(--ink); }
+  .login-gate p { font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 24px; }
+
+  .login-gate form { display: flex; flex-direction: column; gap: 12px; }
+
+  .login-gate input[type="email"] {
+    font-family: var(--sans); font-size: 15px; padding: 12px 14px; border: 1px solid var(--line);
+    border-radius: var(--radius); background: var(--paper); color: var(--ink); outline: none; text-align: center;
+  }
+
+  .login-gate input[type="email"]:focus { border-color: var(--brass); }
+
+  .login-gate button {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase;
+    color: #fff; background: var(--teal); border: none; border-radius: var(--radius);
+    padding: 12px 18px; cursor: pointer;
+  }
+
+  .login-gate button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .login-gate .gate-note { font-size: 12px; color: var(--ink-soft); margin: 18px 0 0; }
+
+  .stamp {
+    position: absolute; top: 16px; right: -8px; transform: rotate(6deg); font-family: var(--mono);
+    font-size: 9px; letter-spacing: 0.1em; color: var(--oxblood); border: 1.5px solid var(--oxblood);
+    border-radius: 3px; padding: 2px 6px; opacity: 0.55; mix-blend-mode: multiply; pointer-events: none;
+  }
+
+  .empty {
+    text-align: center; padding: 60px 20px; border: 1.5px dashed var(--line);
+    border-radius: var(--radius); color: var(--ink-soft);
+  }
+
+  .empty-glyph { font-family: var(--serif); font-size: 42px; color: var(--line); margin-bottom: 8px; }
+  .empty p { font-size: 14px; max-width: 380px; margin: 4px auto 0; line-height: 1.5; }
+
+  /* ---------- Paywall ---------- */
+  .paywall {
+    position: relative; text-align: center; padding: 52px 24px; border: 1.5px solid var(--oxblood);
+    border-radius: var(--radius); background: rgba(139,58,58,0.04);
+  }
+
+  .paywall .stamp {
+    position: static; display: inline-block; transform: rotate(-4deg); margin-bottom: 14px;
+    font-size: 11px; padding: 4px 10px;
+  }
+
+  .paywall h2 { font-family: var(--serif); font-weight: 400; font-size: 24px; margin: 0 0 8px; color: var(--ink); }
+  .paywall p { font-size: 14px; color: var(--ink-soft); max-width: 380px; margin: 0 auto 20px; line-height: 1.5; }
+
+  .buy-btn {
+    font-family: var(--sans); font-weight: 600; font-size: 13.5px; letter-spacing: 0.03em;
+    background: var(--brass-deep); color: var(--paper); border: none; border-radius: var(--radius);
+    padding: 12px 28px; cursor: pointer; transition: background 0.15s ease;
+  }
+
+  .buy-btn:hover { background: var(--brass); }
+  .buy-btn:disabled { background: var(--gray); cursor: not-allowed; }
+
+  .restore-row {
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+    margin-top: 22px; padding-top: 18px; border-top: 1px dashed var(--line);
+  }
+
+  .restore-row input {
+    font-family: var(--mono); font-size: 12px; background: var(--paper);
+    border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px 10px; min-width: 220px; color: var(--ink); outline: none;
+  }
+
+  .restore-row input:focus { border-color: var(--brass); }
+
+  .restore-btn {
+    font-family: var(--mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.04em;
+    background: transparent; border: 1px solid var(--ink-soft); color: var(--ink-soft);
+    border-radius: var(--radius); padding: 8px 16px; cursor: pointer;
+  }
+
+  .restore-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+  .restore-msg { font-size: 12px; color: var(--ink-soft); margin: 10px 0 0; min-height: 16px; }
+
+  .toast code {
+    font-family: var(--mono); background: rgba(92,122,90,0.12); padding: 1px 5px; border-radius: 3px;
+  }
+
+  footer.disclaimer {
+    margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 12px; color: var(--ink-soft); line-height: 1.6;
+  }
+
+  @media (max-width: 480px) {
+    .app { padding: 32px 16px 60px; }
+    form { flex-direction: column; }
+    button.search-btn { padding: 12px; }
+    .slip-top-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+    .tab-btn { padding: 9px 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="login-area" id="login-area"></div>
+
+  <header>
+    <p class="eyebrow">Funding Research Tool</p>
+    <h1>The Grant Index</h1>
+    <p class="subtitle">Search grants, scholarships, and fellowships by subject. Results are pulled live from the web — no loans, no filler, just non-repayable funding.</p>
+  </header>
+
+  <div id="login-gate" class="login-gate" style="display:none;"></div>
+
+  <div id="app-body" style="display:none;">
+
+  <div class="search-slip">
+    <div class="slip-top-row">
+      <span class="slip-label">Subject</span>
+      <span class="usage-counter" id="usage-counter"></span>
+    </div>
+    <form id="search-form">
+      <input type="text" id="topic-input" placeholder="e.g. cultural astronomy, holistic health, yoga teacher training…" autocomplete="off">
+      <button type="submit" class="search-btn" id="search-btn">Search</button>
+    </form>
+
+    <div class="category-filters">
+      <span class="slip-label">Category <span class="cat-hint">(optional — leave blank to search everything)</span></span>
+      <div class="cat-chips" id="cat-chips">
+        <button type="button" class="cat-chip" data-cat="Business">Business</button>
+        <button type="button" class="cat-chip" data-cat="Education">Education &amp; Personal Development</button>
+        <button type="button" class="cat-chip" data-cat="Home">Home</button>
+        <button type="button" class="cat-chip" data-cat="Arts & Culture">Arts &amp; Culture</button>
+        <button type="button" class="cat-chip" data-cat="Health & Wellness">Health &amp; Wellness</button>
+        <button type="button" class="cat-chip" data-cat="Community">Community</button>
+        <button type="button" class="cat-chip" data-cat="Research & Science">Research &amp; Science</button>
+      </div>
+    </div>
+
+    <details class="filters">
+      <summary>Advanced filters (optional)</summary>
+      <div class="filters-grid">
+        <label>
+          <span class="slip-label">Degree level</span>
+          <select id="filter-degree">
+            <option value="">Any</option>
+            <option value="High school">High school</option>
+            <option value="Undergraduate">Undergraduate</option>
+            <option value="Graduate">Graduate</option>
+            <option value="Doctoral">Doctoral</option>
+            <option value="Vocational / certificate">Vocational / certificate</option>
+          </select>
+        </label>
+        <label>
+          <span class="slip-label">Residency</span>
+          <input type="text" id="filter-residency" placeholder="e.g. California, USA">
+        </label>
+        <label>
+          <span class="slip-label">Age</span>
+          <input type="text" id="filter-age" placeholder="e.g. 25 or 18–30">
+        </label>
+        <label>
+          <span class="slip-label">Business type / industry</span>
+          <input type="text" id="filter-industry" placeholder="e.g. food truck, consulting">
+        </label>
+      </div>
+    </details>
+
+    <span class="slip-label chips-label">Try an example — fills the box, doesn't search yet</span>
+    <div class="chips" id="chips">
+      <button type="button" class="chip" data-topic="small business" data-cat="Business">small business</button>
+      <button type="button" class="chip" data-topic="continuing education and professional certification" data-cat="Education">continuing education</button>
+      <button type="button" class="chip" data-topic="home repair and weatherization" data-cat="Home">home repair</button>
+      <button type="button" class="chip" data-topic="independent artists" data-cat="Arts & Culture">independent artists</button>
+      <button type="button" class="chip" data-topic="mental health counseling training" data-cat="Health & Wellness">mental health counseling</button>
+      <button type="button" class="chip" data-topic="community and nonprofit programs" data-cat="Community">community nonprofits</button>
+      <button type="button" class="chip" data-topic="graduate research funding" data-cat="Research & Science">graduate research</button>
+    </div>
+  </div>
+
+  <div id="toast-area"></div>
+
+  <nav class="tabs">
+    <button type="button" class="tab-btn active" id="tab-search">Search</button>
+    <button type="button" class="tab-btn" id="tab-saved">Saved <span id="saved-count">(0)</span></button>
+  </nav>
+
+  <div id="content">
+    <div class="empty">
+      <div class="empty-glyph">§</div>
+      <p>Enter a subject above and the index will pull current, open grants and scholarships that match it.</p>
+    </div>
+  </div>
+
+  </div>
+
+  <footer class="disclaimer">
+    Results are generated via live web search and may be incomplete or contain errors — amounts, deadlines, and eligibility change often. Always confirm details directly with the funding organization before applying.
+  </footer>
+
+</div>
+
+<script>
+  const SAVED_KEY = 'grantIndexSaved';
+  const LOGIN_EMAIL_KEY = 'grantIndexVerifiedEmail';
+  // Shown to the user only — the real price lives in your Stripe Dashboard.
+  // Update this label if you change the price there.
+  const PACK_PRICE_LABEL = '$4.99 for 20 more searches';
+
+  const form = document.getElementById('search-form');
+  const input = document.getElementById('topic-input');
+  const btn = document.getElementById('search-btn');
+  const content = document.getElementById('content');
+  const chips = document.getElementById('chips');
+  const usageCounterEl = document.getElementById('usage-counter');
+  const toastArea = document.getElementById('toast-area');
+  const tabSearchBtn = document.getElementById('tab-search');
+  const tabSavedBtn = document.getElementById('tab-saved');
+  const savedCountEl = document.getElementById('saved-count');
+  const filterDegree = document.getElementById('filter-degree');
+  const filterResidency = document.getElementById('filter-residency');
+  const filterAge = document.getElementById('filter-age');
+  const filterIndustry = document.getElementById('filter-industry');
+  const catChipsEl = document.getElementById('cat-chips');
+
+  const CATEGORY_CLASS = {
+    'Business': 'cat-business',
+    'Education': 'cat-education',
+    'Home': 'cat-home',
+    'Arts & Culture': 'cat-arts',
+    'Research & Science': 'cat-research',
+    'Health & Wellness': 'cat-health',
+    'Community': 'cat-community',
+    'General': 'cat-general'
+  };
+
+  let currentTab = 'search';
+  let currentSort = 'relevance';
+  let lastSearch = null;   // { topic, results }
+  let lastFilters = {};
+  let selectedCategories = new Set();
+  let selectedForExport = new Set();
+  let lastExportEmail = '';
+  let verifiedEmail = localStorage.getItem(LOGIN_EMAIL_KEY) || null;
+
+  // ---------- Entitlement ----------
+  // This is DISPLAY ONLY — the actual gate lives server-side, in
+  // search-grants-background.js. localStorage is never consulted to decide
+  // whether a search is allowed; it can't be, since it's trivially reset by
+  // clearing site data. This just shows the last known count from the server
+  // so the UI isn't blank while waiting.
+  let remainingDisplay = null;
+
+  async function fetchEntitlement() {
+    try {
+      const qs = verifiedEmail ? `?email=${encodeURIComponent(verifiedEmail)}` : '';
+      const res = await fetch(`/api/check-entitlement${qs}`);
+      const data = await res.json();
+      remainingDisplay = data.totalRemaining;
+    } catch {
+      // display-only — leave whatever was last known rather than erroring
+    }
+    renderUsageCounter();
+  }
+
+  function renderUsageCounter() {
+    if (remainingDisplay === null) {
+      usageCounterEl.textContent = '';
+      return;
+    }
+    usageCounterEl.innerHTML = `<strong>${remainingDisplay}</strong> search${remainingDisplay === 1 ? '' : 'es'} left this month`;
+  }
+
+  // ---------- Saved items ----------
+  function getSavedItems() {
+    try { return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'); } catch { return []; }
+  }
+
+  function setSavedItems(items) {
+    localStorage.setItem(SAVED_KEY, JSON.stringify(items));
+    if (verifiedEmail) {
+      // Fire-and-forget — the local write above is the source of truth for
+      // this session; the server copy just needs to eventually catch up so
+      // it's there the next time this person logs in on a new device.
+      fetch('/api/sync-saved-grants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: verifiedEmail, grants: items })
+      }).catch(() => {});
+    }
+  }
+
+  // Runs once, right after a successful login. Pulls whatever's saved
+  // under this email on the server and unions it with whatever's already
+  // saved in this browser — by _id, so nothing gets duplicated or lost in
+  // either direction. The union then gets written back through
+  // setSavedItems, which pushes it to the server too, so both sides end
+  // up holding the same combined list.
+  async function mergeServerSavedGrants() {
+    if (!verifiedEmail) return;
+    try {
+      const res = await fetch(`/api/sync-saved-grants?email=${encodeURIComponent(verifiedEmail)}`);
+      const data = await res.json();
+      const serverGrants = Array.isArray(data.grants) ? data.grants : [];
+      const local = getSavedItems();
+
+      const byId = new Map();
+      for (const item of serverGrants) byId.set(item._id, item);
+      for (const item of local) byId.set(item._id, item); // local wins on conflict — most recently seen on this device
+
+      setSavedItems([...byId.values()]);
+      updateSavedCount();
+      if (currentTab === 'saved') renderSavedList();
+    } catch {
+      // Merge is a courtesy on top of a successful login — if it fails,
+      // this device just keeps using its local list until the next login.
+    }
+  }
+
+  function isSaved(id) {
+    return getSavedItems().some((it) => it._id === id);
+  }
+
+  function findItemById(id) {
+    if (currentTab === 'saved') {
+      return getSavedItems().find((it) => it._id === id);
+    }
+    const inSearch = (lastSearch?.results || []).find((it) => it._id === id);
+    return inSearch || getSavedItems().find((it) => it._id === id);
+  }
+
+  function toggleSave(id) {
+    const saved = getSavedItems();
+    const idx = saved.findIndex((it) => it._id === id);
+    if (idx >= 0) {
+      saved.splice(idx, 1);
+    } else {
+      const item = findItemById(id);
+      if (item) saved.push(item);
+    }
+    setSavedItems(saved);
+    updateSavedCount();
+    if (currentTab === 'saved') {
+      renderSavedList();
+    } else if (lastSearch) {
+      renderResults(lastSearch.results, lastSearch.topic);
+    }
+  }
+
+  function updateSavedCount() {
+    savedCountEl.textContent = `(${getSavedItems().length})`;
+  }
+
+  // ---------- Deadlines / calendar export ----------
+  function parseDeadlineDate(str) {
+    if (!str) return null;
+    const lower = str.toLowerCase();
+    if (lower.includes('rolling') || lower.includes('varies') || lower.includes('see listing') || lower.includes('ongoing') || lower.includes('open')) return null;
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return null;
+    return d;
+  }
+
+  function icsEscape(s) {
+    return String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  }
+
+  function buildIcs(item, date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const dateStr = `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+    const nextDay = new Date(date);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const endStr = `${nextDay.getFullYear()}${pad(nextDay.getMonth() + 1)}${pad(nextDay.getDate())}`;
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const uid = `${item._id}-${dateStr}@grantindex`;
+
+    return [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//The Grant Index//EN',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `UID:${uid}`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;VALUE=DATE:${dateStr}`,
+      `DTEND;VALUE=DATE:${endStr}`,
+      `SUMMARY:${icsEscape('Deadline: ' + (item.name || 'Grant deadline'))}`,
+      `DESCRIPTION:${icsEscape((item.organization ? item.organization + ' — ' : '') + (item.description || ''))}`,
+      item.url ? `URL:${icsEscape(item.url)}` : '',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].filter(Boolean).join('\r\n');
+  }
+
+  function downloadIcs(id) {
+    const item = findItemById(id);
+    if (!item) return;
+    const date = parseDeadlineDate(item.deadline);
+    if (!date) return;
+
+    const ics = buildIcs(item, date);
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(item.name || 'grant-deadline').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ---------- Sorting ----------
+  function sortItems(items, mode) {
+    const arr = [...items];
+    if (mode === 'deadline') {
+      arr.sort((a, b) => {
+        const da = parseDeadlineDate(a.deadline);
+        const db = parseDeadlineDate(b.deadline);
+        if (!da && !db) return 0;
+        if (!da) return 1;
+        if (!db) return -1;
+        return da - db;
+      });
+    } else if (mode === 'amount') {
+      const num = (s) => {
+        if (!s) return -1;
+        const m = String(s).replace(/,/g, '').match(/[\d.]+/);
+        return m ? parseFloat(m[0]) : -1;
+      };
+      arr.sort((a, b) => num(b.amount) - num(a.amount));
+    }
+    return arr;
+  }
+
+  // ---------- IDs ----------
+  function makeId(item) {
+    const slug = `${item.name || ''}|${item.organization || ''}`
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || Math.random().toString(36).slice(2);
+  }
+
+  function attachIds(items) {
+    return items.map((it) => ({ ...it, _id: it._id || makeId(it) }));
+  }
+
+  // ---------- Tabs ----------
+  function setActiveTab(tab) {
+    currentTab = tab;
+    tabSearchBtn.classList.toggle('active', tab === 'search');
+    tabSavedBtn.classList.toggle('active', tab === 'saved');
+    if (tab === 'saved') {
+      renderSavedList();
+    } else if (lastSearch) {
+      renderResults(lastSearch.results, lastSearch.topic);
+    } else {
+      renderInitialEmpty();
+    }
+  }
+
+  tabSearchBtn.addEventListener('click', () => setActiveTab('search'));
+  tabSavedBtn.addEventListener('click', () => setActiveTab('saved'));
+
+  function activateSearchTabUI() {
+    currentTab = 'search';
+    tabSearchBtn.classList.add('active');
+    tabSavedBtn.classList.remove('active');
+  }
+
+  // ---------- Category filter chips ----------
+  function setCategoryChipState(cat, active) {
+    const el = catChipsEl.querySelector(`.cat-chip[data-cat="${CSS.escape(cat)}"]`);
+    if (el) el.classList.toggle('active', active);
+  }
+
+  catChipsEl.addEventListener('click', (e) => {
+    const chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    const cat = chip.dataset.cat;
+    if (selectedCategories.has(cat)) {
+      selectedCategories.delete(cat);
+    } else {
+      selectedCategories.add(cat);
+    }
+    setCategoryChipState(cat, selectedCategories.has(cat));
+  });
+
+  // ---------- Chips / form ----------
+  chips.addEventListener('click', (e) => {
+    const t = e.target.closest('.chip');
+    if (!t) return;
+    input.value = t.dataset.topic;
+    if (t.dataset.cat) {
+      selectedCategories.forEach((c) => setCategoryChipState(c, false));
+      selectedCategories = new Set([t.dataset.cat]);
+      setCategoryChipState(t.dataset.cat, true);
+    }
+    input.focus();
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const topic = input.value.trim();
+    if (!topic) {
+      input.style.borderBottomColor = 'var(--oxblood)';
+      input.placeholder = 'Type a subject first…';
+      input.focus();
+      return;
+    }
+    input.style.borderBottomColor = '';
+
+    lastFilters = {
+      degree: filterDegree.value,
+      residency: filterResidency.value.trim(),
+      age: filterAge.value.trim(),
+      industry: filterIndustry.value.trim(),
+      categories: Array.from(selectedCategories)
+    };
+
+    await runSearch(topic, lastFilters);
+  });
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str == null ? '' : String(str);
+    return d.innerHTML;
+  }
+
+  function renderLoading() {
+    content.innerHTML = `
+      <div class="status">
+        <div class="stamp-spin"></div>
+        Searching current listings — this can take up to a minute…
+      </div>`;
+  }
+
+  function renderError(message, topic) {
+    content.innerHTML = `
+      <div class="error-box">
+        Couldn't complete that search: ${escapeHtml(message)}
+        <br><button id="retry-btn">Try again</button>
+      </div>`;
+    document.getElementById('retry-btn').addEventListener('click', () => runSearch(topic, lastFilters));
+  }
+
+  function renderInitialEmpty() {
+    content.innerHTML = `
+      <div class="empty">
+        <div class="empty-glyph">§</div>
+        <p>Enter a subject above and the index will pull current, open grants and scholarships that match it.</p>
+      </div>`;
+  }
+
+  function renderEmptyResults(topic) {
+    content.innerHTML = `
+      <div class="empty">
+        <div class="empty-glyph">§</div>
+        <p>No open grants or scholarships turned up for "${escapeHtml(topic)}". Try a broader or related subject, or loosen the advanced filters.</p>
+      </div>`;
+  }
+
+  function renderPaywall() {
+    content.innerHTML = `
+      <div class="paywall">
+        <span class="stamp">LIMIT REACHED</span>
+        <h2>You're out of searches this month</h2>
+        <p>Free searches renew next month, or unlock more right now.</p>
+        <button class="buy-btn" id="buy-btn">Buy ${escapeHtml(PACK_PRICE_LABEL)}</button>
+        <div class="restore-row">
+          <input type="text" id="restore-code-input" placeholder="Have a purchase code? Paste it here">
+          <button type="button" class="restore-btn" id="restore-btn">Restore</button>
+        </div>
+        <p class="restore-msg" id="restore-msg"></p>
+      </div>`;
+    document.getElementById('buy-btn').addEventListener('click', startCheckout);
+    document.getElementById('restore-btn').addEventListener('click', restorePurchase);
+  }
+
+  async function restorePurchase() {
+    const input = document.getElementById('restore-code-input');
+    const msgEl = document.getElementById('restore-msg');
+    const code = input.value.trim();
+    if (!code) {
+      msgEl.textContent = 'Paste your purchase code first.';
+      return;
+    }
+    msgEl.textContent = 'Checking…';
+    try {
+      const res = await fetch('/api/restore-credits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, email: verifiedEmail || undefined })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        msgEl.textContent = data.error || 'Could not restore that code.';
+        return;
+      }
+      await fetchEntitlement();
+      msgEl.textContent = `${data.restored} searches restored — you're good to go.`;
+    } catch {
+      msgEl.textContent = 'Something went wrong. Try again in a moment.';
+    }
+  }
+
+  function buildCard(item, options = {}) {
+    const catClass = CATEGORY_CLASS[item.category] || CATEGORY_CLASS['General'];
+    const url = (item.url || '').startsWith('http') ? item.url : '';
+    const saved = isSaved(item._id);
+    const hasDeadline = !!parseDeadlineDate(item.deadline);
+    const selectable = !!options.selectable;
+    const checked = selectable && selectedForExport.has(item._id);
+
+    return `
+      <div class="card ${catClass} ${selectable ? 'selectable' : ''}">
+        ${selectable ? `<input type="checkbox" class="select-check" data-id="${escapeHtml(item._id)}" ${checked ? 'checked' : ''} aria-label="Select ${escapeHtml(item.name || 'this grant')} for export">` : ''}
+        <span class="stamp">MATCH</span>
+        <div class="card-top">
+          <span class="amount">${escapeHtml(item.amount || 'Varies')}</span>
+          <span class="deadline-tag">${escapeHtml(item.deadline || 'See listing')}</span>
+        </div>
+        <h3>${escapeHtml(item.name || 'Untitled fund')}</h3>
+        <p class="org">${escapeHtml(item.organization || 'Unknown organization')}</p>
+        <p class="desc">${escapeHtml(item.description || '')}</p>
+        ${item.eligibility ? `<p class="eligibility"><strong>Eligibility —</strong> ${escapeHtml(item.eligibility)}</p>` : ''}
+        <div class="card-footer">
+          ${url ? `<a class="source-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">View source →</a>` : '<span></span>'}
+          <div class="card-actions">
+            <button type="button" class="icon-btn cal-btn" data-id="${escapeHtml(item._id)}" ${hasDeadline ? '' : 'disabled title="No fixed deadline to add"'}>+ Cal</button>
+            <button type="button" class="icon-btn save-btn ${saved ? 'saved' : ''}" data-id="${escapeHtml(item._id)}">${saved ? '\u2605 Saved' : '\u2606 Save'}</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderResults(items, topic) {
+    if (!items || items.length === 0) {
+      renderEmptyResults(topic);
+      return;
+    }
+    const sorted = sortItems(items, currentSort);
+    const cards = sorted.map(buildCard).join('');
+
+    content.innerHTML = `
+      <div class="results-header">
+        <span>${items.length} result${items.length === 1 ? '' : 's'} for "${escapeHtml(topic)}"</span>
+        <label class="sort-control">Sort
+          <select id="sort-select">
+            <option value="relevance" ${currentSort === 'relevance' ? 'selected' : ''}>Relevance</option>
+            <option value="deadline" ${currentSort === 'deadline' ? 'selected' : ''}>Deadline</option>
+            <option value="amount" ${currentSort === 'amount' ? 'selected' : ''}>Amount</option>
+          </select>
+        </label>
+      </div>
+      <div class="grid">${cards}</div>`;
+  }
+
+  // ---------- Login (magic link) ----------
+  const loginAreaEl = document.getElementById('login-area');
+  const loginGateEl = document.getElementById('login-gate');
+  const appBodyEl = document.getElementById('app-body');
+
+  function renderGate() {
+    if (verifiedEmail) {
+      loginGateEl.style.display = 'none';
+      appBodyEl.style.display = '';
+      return;
+    }
+    appBodyEl.style.display = 'none';
+    loginGateEl.style.display = '';
+    loginGateEl.innerHTML = `
+      <h2>Log in to search</h2>
+      <p>A quick, password-free login — this is what keeps your free searches, purchased credits, and saved grants tied to you instead of whatever wifi you're on.</p>
+      <form id="gate-form">
+        <input type="email" id="gate-email-input" placeholder="you@example.com" required autofocus>
+        <button type="submit" id="gate-submit-btn">Send login link</button>
+      </form>
+      <p class="gate-note">We'll email you a one-time link. No password to remember, nothing to install.</p>`;
+  }
+
+  loginGateEl.addEventListener('submit', async (e) => {
+    if (e.target.id !== 'gate-form') return;
+    e.preventDefault();
+    const emailInput = document.getElementById('gate-email-input');
+    const submitBtn = document.getElementById('gate-submit-btn');
+    const email = (emailInput.value || '').trim();
+    if (!email) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
+
+    try {
+      const res = await fetch('/api/request-login-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.status === 'sent') {
+        loginGateEl.innerHTML = `
+          <h2>Check your email</h2>
+          <p>A login link is on its way to ${escapeHtml(email)}. It's valid for 15 minutes and works once.</p>`;
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send login link';
+        const detail = data.detail ? `<br><span style="opacity:0.7;">${escapeHtml(data.detail)}</span>` : '';
+        toastArea.innerHTML = `<div class="error-box">${escapeHtml(data.error || 'Could not send that login link.')}${detail}</div>`;
+      }
+    } catch {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send login link';
+      toastArea.innerHTML = `<div class="error-box">Could not reach the server. Check your connection and try again.</div>`;
+    }
+  });
+
+  function renderLoginArea() {
+    if (verifiedEmail) {
+      loginAreaEl.style.display = '';
+      loginAreaEl.innerHTML = `
+        <span class="logged-in-email">${escapeHtml(verifiedEmail)}</span>
+        <button type="button" class="logout-btn" id="logout-btn">Log out</button>`;
+      return;
+    }
+    // Not logged in — the gate below is the one entry point for logging in,
+    // no need for a second, redundant "Log in" link up here too.
+    loginAreaEl.style.display = 'none';
+    loginAreaEl.innerHTML = '';
+  }
+
+  loginAreaEl.addEventListener('click', (e) => {
+    if (e.target.id === 'logout-btn') {
+      verifiedEmail = null;
+      localStorage.removeItem(LOGIN_EMAIL_KEY);
+      renderLoginArea();
+      renderGate();
+      fetchEntitlement();
+    }
+  });
+
+  async function checkForLoginToken() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('login_token');
+    if (!token) return;
+
+    try {
+      const res = await fetch(`/api/verify-login-token?token=${encodeURIComponent(token)}`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.status === 'ok') {
+        verifiedEmail = data.email;
+        localStorage.setItem(LOGIN_EMAIL_KEY, verifiedEmail);
+        toastArea.innerHTML = `<div class="toast">Logged in as ${escapeHtml(verifiedEmail)}.</div>`;
+        renderLoginArea();
+        renderGate();
+        await fetchEntitlement();
+        await mergeServerSavedGrants();
+      } else {
+        toastArea.innerHTML = `<div class="error-box">${escapeHtml(data.error || 'That login link is no longer valid.')}</div>`;
+      }
+    } catch {
+      // silent — worst case the user just isn't logged in and can try again
+    }
+
+    params.delete('login_token');
+    const clean = window.location.pathname + (params.toString() ? `?${params}` : '');
+    history.replaceState({}, '', clean);
+  }
+
+  function renderExportBar() {
+    const count = selectedForExport.size;
+    const replyHint = verifiedEmail
+      ? `<span class="export-count" style="text-transform:none; letter-spacing:0;">Replies will go to ${escapeHtml(verifiedEmail)}</span>`
+      : '';
+    return `
+      <div class="export-bar">
+        <span class="export-count">${count} selected</span>
+        ${replyHint}
+        <input type="email" id="export-email-input" placeholder="you@example.com" value="${escapeHtml(lastExportEmail)}" ${count === 0 ? 'disabled' : ''}>
+        <button type="button" id="export-send-btn" ${count === 0 ? 'disabled' : ''}>Email as CSV</button>
+      </div>`;
+  }
+
+  function renderSavedList() {
+    const saved = getSavedItems();
+    // Drop any stale selections for items that are no longer saved
+    for (const id of [...selectedForExport]) {
+      if (!saved.some((it) => it._id === id)) selectedForExport.delete(id);
+    }
+    if (saved.length === 0) {
+      content.innerHTML = `
+        <div class="empty">
+          <div class="empty-glyph">\u2606</div>
+          <p>Nothing saved yet. Tap "Save" on a result to keep it here.</p>
+        </div>`;
+      return;
+    }
+    const cards = saved.map((item) => buildCard(item, { selectable: true })).join('');
+    content.innerHTML = `
+      <div class="results-header"><span>${saved.length} saved</span></div>
+      ${renderExportBar()}
+      <div class="grid">${cards}</div>`;
+  }
+
+  // Delegated handlers — cover every card render (search results and saved list) automatically
+  content.addEventListener('click', (e) => {
+    const saveBtn = e.target.closest('.save-btn');
+    if (saveBtn) { toggleSave(saveBtn.dataset.id); return; }
+    const calBtn = e.target.closest('.cal-btn');
+    if (calBtn && !calBtn.disabled) { downloadIcs(calBtn.dataset.id); return; }
+    const sendBtn = e.target.closest('#export-send-btn');
+    if (sendBtn && !sendBtn.disabled) { sendSelectedGrantsByEmail(); }
+  });
+
+  content.addEventListener('change', (e) => {
+    if (e.target.id === 'sort-select' && lastSearch) {
+      currentSort = e.target.value;
+      renderResults(lastSearch.results, lastSearch.topic);
+      return;
+    }
+    if (e.target.classList.contains('select-check')) {
+      const id = e.target.dataset.id;
+      if (e.target.checked) selectedForExport.add(id);
+      else selectedForExport.delete(id);
+      // Just refresh the export bar's count/enabled-state, not the whole grid —
+      // re-rendering the grid would rebuild every checkbox and lose scroll position.
+      const bar = content.querySelector('.export-bar');
+      if (bar) bar.outerHTML = renderExportBar();
+    }
+  });
+
+  content.addEventListener('input', (e) => {
+    if (e.target.id === 'export-email-input') {
+      lastExportEmail = e.target.value;
+    }
+  });
+
+  async function sendSelectedGrantsByEmail() {
+    const emailInput = document.getElementById('export-email-input');
+    const sendBtn = document.getElementById('export-send-btn');
+    const email = (emailInput?.value || '').trim();
+
+    if (!email) {
+      toastArea.innerHTML = `<div class="error-box">Enter an email address first.</div>`;
+      return;
+    }
+
+    const saved = getSavedItems();
+    const grants = saved.filter((it) => selectedForExport.has(it._id));
+    if (grants.length === 0) {
+      toastArea.innerHTML = `<div class="error-box">Select at least one saved grant first.</div>`;
+      return;
+    }
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending…';
+
+    try {
+      const res = await fetch('/api/send-grants-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, grants, replyTo: verifiedEmail || undefined })
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.status === 'sent') {
+        toastArea.innerHTML = `<div class="toast">Sent ${data.count} grant${data.count === 1 ? '' : 's'} to ${escapeHtml(email)} as a CSV.</div>`;
+        selectedForExport.clear();
+        renderSavedList();
+      } else {
+        toastArea.innerHTML = `<div class="error-box">${escapeHtml(data.error || 'Something went wrong sending that email.')}</div>`;
+      }
+    } catch {
+      toastArea.innerHTML = `<div class="error-box">Could not reach the server. Check your connection and try again.</div>`;
+    } finally {
+      if (document.getElementById('export-send-btn')) {
+        sendBtn.disabled = selectedForExport.size === 0;
+        sendBtn.textContent = 'Email as CSV';
+      }
+    }
+  }
+
+  function generateJobId() {
+    if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    return 'job-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+  }
+
+  async function pollForResult(jobId) {
+    const POLL_INTERVAL_MS = 1500;
+    const MAX_ATTEMPTS = 50; // roughly 75 seconds of polling
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      try {
+        const res = await fetch(`/api/check-search-result?jobId=${encodeURIComponent(jobId)}`);
+        const data = await res.json();
+        if (data.status === 'done' || data.status === 'error' || data.status === 'paywall') return data;
+        // status === 'pending' — keep polling
+      } catch {
+        // transient poll failure — keep trying rather than aborting immediately
+      }
+    }
+
+    return { status: 'error', error: 'The search is taking longer than expected. Please try again.' };
+  }
+
+  async function runSearch(topic, filters = {}) {
+    activateSearchTabUI();
+    btn.disabled = true;
+    renderLoading();
+
+    const jobId = generateJobId();
+
+    try {
+      await fetch('/api/search-grants-background', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId,
+          topic,
+          degree: filters.degree || '',
+          residency: filters.residency || '',
+          age: filters.age || '',
+          industry: filters.industry || '',
+          categories: filters.categories || [],
+          email: verifiedEmail || undefined
+        })
+      });
+
+      const outcome = await pollForResult(jobId);
+
+      if (outcome.status === 'paywall') {
+        renderPaywall();
+        return;
+      }
+
+      if (outcome.status === 'error') {
+        throw new Error(outcome.error || 'Search failed.');
+      }
+
+      lastSearch = { topic, results: attachIds(Array.isArray(outcome.results) ? outcome.results : []) };
+      renderResults(lastSearch.results, topic);
+    } catch (err) {
+      renderError(err.message || 'Something went wrong.', topic);
+    } finally {
+      btn.disabled = false;
+      fetchEntitlement(); // the server may have just consumed a search — refresh the displayed count
+    }
+  }
+
+  // ---------- Stripe checkout ----------
+  async function startCheckout() {
+    const buyBtn = document.getElementById('buy-btn');
+    if (buyBtn) { buyBtn.disabled = true; buyBtn.textContent = 'Redirecting…'; }
+
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: verifiedEmail || undefined })
+      });
+      const data = await response.json();
+      if (!response.ok || !data.url) {
+        throw new Error(data.error || 'Could not start checkout.');
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      if (buyBtn) { buyBtn.disabled = false; buyBtn.textContent = `Buy ${PACK_PRICE_LABEL}`; }
+      renderError(err.message, input.value.trim());
+    }
+  }
+
+  async function checkForCompletedPurchase() {
+    const params = new URLSearchParams(window.location.search);
+    const purchase = params.get('purchase');
+    const sessionId = params.get('session_id');
+
+    if (purchase === 'success' && sessionId) {
+      try {
+        const response = await fetch(`/api/verify-checkout-session?session_id=${encodeURIComponent(sessionId)}`);
+        const data = await response.json();
+        if (data.valid) {
+          toastArea.innerHTML = `<div class="toast">${data.credits} searches added to your account. Switch networks or devices later? Save this purchase code to restore them: <code>${escapeHtml(data.purchaseCode)}</code></div>`;
+          await fetchEntitlement();
+        }
+      } catch {
+        // silent — worst case the user just doesn't see the toast
+      }
+    }
+
+    if (purchase) {
+      params.delete('purchase');
+      params.delete('session_id');
+      const clean = window.location.pathname + (params.toString() ? `?${params}` : '');
+      history.replaceState({}, '', clean);
+    }
+  }
+
+  // ---------- Init ----------
+  updateSavedCount();
+  renderLoginArea();
+  renderGate();
+  checkForLoginToken();
+  checkForCompletedPurchase().then(fetchEntitlement);
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
